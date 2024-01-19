@@ -16,8 +16,13 @@ app.get("/", (req, res) => {
 
 const webRTCNamespace = io.of('/webRTCPeers');
 
+
 webRTCNamespace.on('connection', (socket) => {
-  console.log(socket.id);
+  
+  console.log(socket.id)
+  socket.on("error",(error)=> {
+    console.error(`Connection Error : ${error}`)
+  })
 
   socket.emit("connection-success", {
     status: "connection-success",
