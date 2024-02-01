@@ -16,6 +16,9 @@ const App = () => {
    const [offerVisible,setOfferVisible] = useState(true)
    const [answerVisible,setAnswerVisible] =useState(false)
    const [status,setStatus] = useState("Make a call now")
+   const [sharingScreen, setSharingScreen] = useState(false);
+   const [sdpData, setSdpData] = useState(null);
+   const [iceCandidates, setIceCandidates] = useState([]);
 
    useEffect(() => {
     socket.on("connection-success" , success => {
@@ -25,7 +28,7 @@ const App = () => {
     socket.on('sdp',data => {
       console.log(data)
       pc.current.setRemoteDescription(new RTCSessionDescription(data.sdp))
-      textRef.current.value = JSON.stringify(data.sdp)
+      setSdpData(JSON.stringify(data.sdp));
       if(data.sdp.type === "offer")
       {
       setOfferVisible(false)
@@ -36,13 +39,14 @@ const App = () => {
     }
     })
 
-    socket.on('candidate',candidate => {
+    socket.on('candidate', candidate => {
       console.log(candidate)
+      setIceCandidates(prevCandidates => [...prevCandidates, candidate]);
       pc.current.addIceCandidate(new RTCIceCandidate(candidate))
     })
 
     const constraints = {
-      audio:false,
+      audio:true,
       video:true
     }
 
@@ -91,7 +95,6 @@ const App = () => {
        processSdp(sdp)
        setOfferVisible(false)
        setStatus("Calling...")
-
     }).catch(e => console.log(e))
    }
 
@@ -123,6 +126,31 @@ const App = () => {
     // pc.current.addIceCandidate(new RTCIceCandidate(candidate))
    }*/}
 
+   const shareScreen = () => {
+    if (!sharingScreen) {
+      navigator.mediaDevices.getDisplayMedia({
+        video: true,
+      }).then((stream) => {
+        const screenTrack = stream.getTracks()[0];
+        pc.current.getSenders().map(sender => {
+          if (sender.track.kind === 'video') {
+            sender.replaceTrack(screenTrack);
+          }
+        });
+        setSharingScreen(true);
+      });
+    } else {
+      pc.current.getSenders().map(sender => {
+        if (sender.track.kind === 'video') {
+          navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+            sender.replaceTrack(stream.getTracks()[0]);
+          });
+        }
+      });
+      setSharingScreen(false);
+    }
+  }
+
    const showHiddenButtons =() => {
     if(offerVisible){
       return <div>
@@ -147,10 +175,11 @@ const App = () => {
      {/*<br />
      <button onClick={createOffer} >CreateOffer</button>
      <button onClick={createAnswer} className="p-4">CreateAnswer</button>
-  <br />*/}
+  <br/>*/}
   {showHiddenButtons()}
+  <button onClick={shareScreen}>{sharingScreen ? 'Stop Sharing Screen' : 'Share Screen'}</button>
   <div>{status}</div>
-     <textarea ref={textRef}></textarea>
+     {/*<textarea ref={textRef}></textarea>*/}
      {/*<br/>
      <button onClick= {setRemoteDescription}>SetRemoteDescription</button>
   <button onClick= {addCandidate} className="p-4">AddCandidates</button>*/}
